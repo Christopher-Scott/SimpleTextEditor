@@ -96,14 +96,14 @@ public class Editor
                 try{
                     this.read();
                 } catch (FileNotFoundException e){
-                    System.out.println("Error: File not found");
+                    System.err.println("Error: File not found");
                 }
                 break;
             case SAVE:
                 try {
                     this.save();
                 } catch(FileNotFoundException e){
-                    System.out.println("Error: File not found");
+                    System.err.println("Error: File not found");
                 }
                 break;
             case LIST: this.list();
@@ -113,7 +113,7 @@ public class Editor
             case QUIT:
             case EXIT: retval = true;
                 break;
-            case UNDEFINED: System.out.println("Undefined command:" + com);
+            case UNDEFINED: System.err.println("Undefined command:" + com);
         }
         return retval;
     }

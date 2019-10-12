@@ -83,11 +83,12 @@ public class CompLL<T extends Comparable<T>>
     }
 
     public ListElement<T> removeElement(T target, ListElement<T> h) {
-        if (h.link == null) {
-            return h;
-        } else if (target.compareTo(h.value) == 0) {
-//            System.out.println("elif: " + h.value);
+
+        if (target.compareTo(h.value) == 0) { // current value is the one to remove
             return h.link;
+        }
+        else if (h.link == null) { // end of list
+            return h;
         } else
 //            System.out.println("Going deeper: " + h.link);
             h.link = removeElement(target, h.link);
@@ -118,6 +119,9 @@ public class CompLL<T extends Comparable<T>>
 
         cll.removeElement(2);
 
+        System.out.println(cll);
+
+        cll.removeElement(33);
         System.out.println(cll);
 
     }
