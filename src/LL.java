@@ -1,3 +1,7 @@
+/*  CIS 2168 Lab3
+    Christopher Scott
+    "A Linked List used for chaining in the hash table"
+ */
 public class LL<T>
 {
   private ListElement<T> head;
@@ -33,6 +37,7 @@ public class LL<T>
     this.tail = this.tail.link;
   }
 
+  // Added - Iteratively lookup target in the list and return the value
   public T find(T target){
       if(this.isEmpty()){
           return null;
@@ -49,27 +54,27 @@ public class LL<T>
           return where.value;
       return null;
   }
-
-  public T findAndRemove(T target){
-      if(this.isEmpty())
-          return null;
-      ListElement<T> where = this.head;
-      while(where.link.link != null){ // iterate through, looking one element ahead
-          if(where.link.getValue().equals(target)) {
-              T val = where.link.getValue();
-              where.link = where.link.link;  // value is found, cut where.link out of chain
-              return val;
-          }
-          else
-              where = where.link;
-      }
-      if(where.link.getValue().equals(target)){ // check if the last element has the target
-          T val = where.link.getValue();
-          where.link = null;
-          return val;
-      }
-      return null;
-  }
+  // Added - unused
+//  public T findAndRemove(T target){
+//      if(this.isEmpty())
+//          return null;
+//      ListElement<T> where = this.head;
+//      while(where.link.link != null){ // iterate through, looking one element ahead
+//          if(where.link.getValue().equals(target)) {
+//              T val = where.link.getValue();
+//              where.link = where.link.link;  // value is found, cut where.link out of chain
+//              return val;
+//          }
+//          else
+//              where = where.link;
+//      }
+//      if(where.link.getValue().equals(target)){ // check if the last element has the target
+//          T val = where.link.getValue();
+//          where.link = null;
+//          return val;
+//      }
+//      return null;
+//  }
 
   public String toString()
   {

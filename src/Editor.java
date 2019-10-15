@@ -1,18 +1,26 @@
+/*  CIS 2168 Lab3
+    Christopher Scott
+    "A simple text editor"
+ */
+
 import java.util.Scanner;
 import java.io.*;
+import java.util.StringTokenizer;
 
 public class Editor
 {
     private CompLL<Line> theText;
     private String prompt;
-    private enum Keywords {READ, SAVE, LIST, RESEQUENCE, QUIT, EXIT, UNDEFINED;};
+    private enum Keywords {READ, SAVE, LIST, RESEQUENCE, LET, PRINT, RUN, QUIT, EXIT, UNDEFINED};
     private Scanner console;
+    private Dictionary symbolTable;
 
     public Editor()
     {
         this.theText = new CompLL<Line>();
         this.prompt = ">";
         this.console = new Scanner(System.in);
+        this.symbolTable = new Dictionary();
     }
 
     public String getPrompt()
@@ -69,12 +77,19 @@ public class Editor
                     theText.insertInOrder(lineObj);
 
                 } else //otherwise, it is a command, so call doCommand to perform it.
-                    done = this.doCommand(splitString[0]);
+                    if(splitString[0].equalsIgnoreCase("let") || splitString[0].equalsIgnoreCase("print"))
+                        done = this.doCommand(splitString[0], splitString[1]);
+                    else
+                        done = this.doCommand(splitString[0]);
             }
         }
     }
 
-    private boolean doCommand(String com)
+    private boolean doCommand(String com){
+        return doCommand(com, null);
+    }
+
+    private boolean doCommand(String com, String expr)
     {
         boolean retval = false;
         Keywords command;
@@ -109,6 +124,12 @@ public class Editor
             case LIST: this.list();
                 break;
             case RESEQUENCE: this.resequence();
+                break;
+            case LET: this.let(expr);
+                break;
+            case PRINT: this.print(expr);
+                break;
+            case RUN: this.run();
                 break;
             case QUIT:
             case EXIT: retval = true;
@@ -176,12 +197,71 @@ public class Editor
         this.theText = newText;
     }
 
+    // declare a variable and insert it into the symbol table
+    private void let(String expr)
+    {
+        String variable;
+        String exprArr[] = expr.split("=");
+//        System.out.println(java.util.Arrays.toString(exprArr));
+        if(exprArr.length > 2)  // should only be 2 tokens, one on either side of =
+            System.err.println("Error: Invalid expression\n\tUsage: LET <variable> = <expression>");
+        if(Character.isDigit(exprArr[0].charAt(0)))
+            System.err.println("Error: Illegal variable name, variables may not start with numerals");
+        StringTokenizer splitter = new StringTokenizer(exprArr[0], " ", false);
+        if(splitter.countTokens() > 1) // If there are more than 1 tokens then there was a space in the variable name
+            System.err.println("Error: Illegal variable name");
+        else
+        {
+            variable = splitter.nextToken();
+            symbolTable.insert(variable, evaluate(exprArr[1]));
+        }
+
+    }
+
+    // print out the result of an expression
+    private void print(String expr)
+    {
+        // need to validate expr
+//        System.out.println(expr);
+        System.out.println(evaluate(expr));
+    }
+
+    private void run()
+    {
+        for(Line line : theText){
+//            System.out.println(line);
+            String splitString[] = line.value.split(" ", 2);
+            if(splitString[0].equalsIgnoreCase("let") || splitString[0].equalsIgnoreCase("print"))
+                this.doCommand(splitString[0], splitString[1]);
+            else
+                this.doCommand(splitString[0]);
+        }
+
+    }
+
+    // evaluate a mathematical expression
+    private double evaluate(String expr)
+    {
+        return Postfix.postfix(Infix.infixToPost(expr, this.symbolTable));
+    }
+
+//    private boolean validateVariable(String var){
+//        if(Character.isDigit(var.charAt(0))) // var begins with a digit
+//            return false;
+//        if(var.matches("\\s+")) // var contains whitespace
+//            return false;
+//        if(var.matches("[!#@%&\\^|=+;\\-]+")) // var contains illegal characters
+//            return false;
+//        return true;
+//    }
+
     public static void main(String args[])
     {
         Editor e = new Editor();
         e.process();
     }
 
+    // A data class to hold the line number and the line of text
     private class Line implements Comparable<Line>{
         private int lineNum;
         private String value;

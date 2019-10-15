@@ -1,3 +1,7 @@
+/*  CIS 2168 Lab3
+    Christopher Scott
+    "Variable data type to hold a name and associated value"
+ */
 public class Variable
 {
   private String name;

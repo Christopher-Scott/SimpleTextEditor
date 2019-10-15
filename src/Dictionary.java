@@ -1,3 +1,7 @@
+/*  CIS 2168 Lab3
+    Christopher Scott
+    "A hash table to store variable names"
+ */
 public class Dictionary
 {
   private LL<Variable> theTable[];
@@ -9,9 +13,8 @@ public class Dictionary
     this.size = size;
     for (int i = 0; i < size; i++)
     {
-      theTable[i] = new LL<Variable>();
+      theTable[i] = new LL<Variable>(); // changed to instantiate LL
     }
-//this is wrong - fixed
   }
 
   public Dictionary()
@@ -24,14 +27,17 @@ public class Dictionary
     int where = hash(s);
     Variable input = new Variable(s, val);
     Variable old;
+    // check if the string to be inserted already exists
+    // if it does grab a reference to the Variable obj
+    // and replace value
     if((old = theTable[where].find(input)) != null){
       old.setValue(val);
     }
     else
       theTable[where].insertAtHead(input);
-//lookup first and change if it already exists, otherwise insert as above
   }
 
+  // Lookup item in dictionary
   public double find(String s) throws KeyException
   {
     int where = hash(s);

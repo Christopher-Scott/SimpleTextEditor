@@ -1,5 +1,10 @@
+/*  CIS 2168 Lab3
+    Christopher Scott
+    "An ordered linked list used to hold lines in the text editor"
+ */
+import java.util.Iterator;
 
-public class CompLL<T extends Comparable<T>>
+public class CompLL<T extends Comparable<T>> implements Iterable<T>
 {
     private ListElement<T> head;
     private ListElement<T> tail;
@@ -8,6 +13,10 @@ public class CompLL<T extends Comparable<T>>
     {
         this.head = new ListElement<T>(); // add dummy "first" element
         this.tail = this.head;
+    }
+
+    public Iterator<T> iterator() {
+        return new LLIterator<T>(this);
     }
 
     public void insertAtHead(T value)
@@ -125,6 +134,24 @@ public class CompLL<T extends Comparable<T>>
         System.out.println(cll);
 
     }
+
+class LLIterator<E extends Comparable<E>> implements Iterator<E>{
+        ListElement<E> current;
+
+        public LLIterator(CompLL obj){
+            current = obj.head.link;
+        }
+
+        public boolean hasNext(){
+            return current != null;
+        }
+
+        public E next(){
+            E val = current.getValue();
+            current = current.link;
+            return val;
+        }
+}
 
 class ListElement<R extends Comparable<R>>
 {
