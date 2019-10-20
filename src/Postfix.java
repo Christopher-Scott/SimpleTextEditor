@@ -65,14 +65,21 @@ public class Postfix{
         }
         
         // Catch error where there is more than 1 item left on the stack
-        double answer = Double.parseDouble(stack.pop());
-        if (stack.isEmpty()) {
-            return answer;
-        } 
-        else {
-            System.err.println("The expression was not valid: 1 item left over");
+        try {
+            double answer = Double.parseDouble(stack.pop());
+            if (stack.isEmpty()) {
+                return answer;
+            } else {
+                System.err.println("The expression was not valid: 1 item left over");
+                System.exit(1);
+                return 0.0;
+            }
+        }
+        catch(NullPointerException e) {
+            System.err.println("The expression was not valid");
             System.exit(1);
             return 0.0;
+
         }
     }    
         

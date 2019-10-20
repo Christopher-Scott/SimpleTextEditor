@@ -28,7 +28,7 @@ public class Dictionary
     Variable input = new Variable(s, val);
     Variable old;
     // check if the string to be inserted already exists
-    // if it does grab a reference to the Variable obj
+    // if it does assign a reference to the Variable obj
     // and replace value
     if((old = theTable[where].find(input)) != null){
       old.setValue(val);

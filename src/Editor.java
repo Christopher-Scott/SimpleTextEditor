@@ -11,7 +11,7 @@ public class Editor
 {
     private CompLL<Line> theText;
     private String prompt;
-    private enum Keywords {READ, SAVE, LIST, RESEQUENCE, LET, PRINT, RUN, QUIT, EXIT, UNDEFINED};
+    private enum Keywords {READ, SAVE, LIST, RESEQUENCE, LET, PRINT, RUN, ACCEPT, QUIT, EXIT, UNDEFINED};
     private Scanner console;
     private Dictionary symbolTable;
 
@@ -76,15 +76,20 @@ public class Editor
                     Line lineObj = new Line(Integer.parseInt(splitString[0]), splitString[1]);
                     theText.insertInOrder(lineObj);
 
-                } else //otherwise, it is a command, so call doCommand to perform it.
-                    if(splitString[0].equalsIgnoreCase("let") || splitString[0].equalsIgnoreCase("print"))
+                }
+                else //otherwise, it is a command, so call doCommand to perform it.
+                {
+                    // provides command arg and expression arg to let(), print(), and accept()
+                    if (splitString[0].equalsIgnoreCase("let") || splitString[0].equalsIgnoreCase("print")
+                            || splitString[0].equalsIgnoreCase("accept"))
                         done = this.doCommand(splitString[0], splitString[1]);
                     else
                         done = this.doCommand(splitString[0]);
+                }
             }
         }
     }
-
+    // Overloaded for commands that do not require additional parameters
     private boolean doCommand(String com){
         return doCommand(com, null);
     }
@@ -131,6 +136,8 @@ public class Editor
                 break;
             case RUN: this.run();
                 break;
+            case ACCEPT: this.accept(expr);
+                break;
             case QUIT:
             case EXIT: retval = true;
                 break;
@@ -144,7 +151,7 @@ public class Editor
     // Read lines from a user specified file and insert them into the editor
     private void read() throws FileNotFoundException
     {
-        System.out.print(">Enter the file you would like to read:\n>");
+        System.out.print("Enter the file you would like to read:\n>");
         Scanner input = new Scanner(new File(console.nextLine()));
         while(input.hasNext()){
             String inputLine = input.nextLine();
@@ -160,7 +167,7 @@ public class Editor
     // Write the current lines to an output file
     private void save() throws FileNotFoundException
     {
-        System.out.print(">What would you like to save the file as?\n>");
+        System.out.print("What would you like to save the file as?\n>");
         File output = new File(console.nextLine());
         PrintStream out = new PrintStream(output);
         out.print(theText.toString());
@@ -169,7 +176,7 @@ public class Editor
     // Prints out the current lines
     private void list()
     {
-        System.out.println(theText.toString());
+        System.out.print(theText.toString());
     }
 
     // Re-number the current lines starting from 10
@@ -202,18 +209,17 @@ public class Editor
     {
         String variable;
         String exprArr[] = expr.split("=");
-//        System.out.println(java.util.Arrays.toString(exprArr));
         if(exprArr.length > 2)  // should only be 2 tokens, one on either side of =
             System.err.println("Error: Invalid expression\n\tUsage: LET <variable> = <expression>");
         if(Character.isDigit(exprArr[0].charAt(0)))
             System.err.println("Error: Illegal variable name, variables may not start with numerals");
         StringTokenizer splitter = new StringTokenizer(exprArr[0], " ", false);
         if(splitter.countTokens() > 1) // If there are more than 1 tokens then there was a space in the variable name
-            System.err.println("Error: Illegal variable name");
+            System.err.println("Error: Illegal variable name, variables may not contain whitespace");
         else
         {
             variable = splitter.nextToken();
-            symbolTable.insert(variable, evaluate(exprArr[1]));
+            this.symbolTable.insert(variable, evaluate(exprArr[1]));
         }
 
     }
@@ -221,17 +227,18 @@ public class Editor
     // print out the result of an expression
     private void print(String expr)
     {
-        // need to validate expr
 //        System.out.println(expr);
         System.out.println(evaluate(expr));
     }
 
     private void run()
     {
-        for(Line line : theText){
+        for(Line line : theText) // iterate through theText
+        {
 //            System.out.println(line);
             String splitString[] = line.value.split(" ", 2);
-            if(splitString[0].equalsIgnoreCase("let") || splitString[0].equalsIgnoreCase("print"))
+            if(splitString[0].equalsIgnoreCase("let") || splitString[0].equalsIgnoreCase("print")
+                || splitString[0].equalsIgnoreCase("accept"))
                 this.doCommand(splitString[0], splitString[1]);
             else
                 this.doCommand(splitString[0]);
@@ -245,15 +252,22 @@ public class Editor
         return Postfix.postfix(Infix.infixToPost(expr, this.symbolTable));
     }
 
-//    private boolean validateVariable(String var){
-//        if(Character.isDigit(var.charAt(0))) // var begins with a digit
-//            return false;
-//        if(var.matches("\\s+")) // var contains whitespace
-//            return false;
-//        if(var.matches("[!#@%&\\^|=+;\\-]+")) // var contains illegal characters
-//            return false;
-//        return true;
-//    }
+    // Ask the user to specify a value to assign to a variable
+    private void accept(String var)
+    {
+        // Handle variable name errors
+        if(Character.isDigit(var.charAt(0)))
+            System.err.println("Error: Illegal variable name, variables may not start with numerals");
+        else if(var.contains(" ") || var.contains("\n") || var.contains("\t"))
+            System.err.println("Error: Illegal variable name, variables may not contain whitespace");
+        else
+        {
+            Scanner input = new Scanner(System.in); // create a separate scanner to prevent collisions with console
+            System.out.print(var + " = \n>");
+            this.symbolTable.insert(var, evaluate(input.next()));
+        }
+
+    }
 
     public static void main(String args[])
     {

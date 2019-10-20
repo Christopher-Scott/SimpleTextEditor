@@ -17,6 +17,7 @@ public class Variable
     this.name = s;
   }
 
+  // override equals method used in LL.find()
   public boolean equals(Object other){
     if(!(other instanceof  Variable))
       return false;
