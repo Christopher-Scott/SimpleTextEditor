@@ -142,6 +142,8 @@ public class Editor
             case EXIT: retval = true;
                 break;
             case UNDEFINED: System.err.println("Undefined command:" + com);
+//                System.out.println();
+                break;
         }
         return retval;
     }
@@ -159,6 +161,11 @@ public class Editor
             if(isInt(splitline[0])) {
                 Line lineObj = new Line(Integer.parseInt(splitline[0]), splitline[1]);
                 theText.insertInOrder(lineObj);
+            }
+            else
+            {
+              System.err.println("Error: could not parse file");
+              System.exit(1);
             }
         }
 
@@ -207,16 +214,28 @@ public class Editor
     // declare a variable and insert it into the symbol table
     private void let(String expr)
     {
+        boolean valid = true;
         String variable;
         String exprArr[] = expr.split("=");
-        if(exprArr.length > 2)  // should only be 2 tokens, one on either side of =
+        if(exprArr.length != 2)// should only be 2 tokens, one on either side of =
+        {
             System.err.println("Error: Invalid expression\n\tUsage: LET <variable> = <expression>");
+            valid = false;
+        }
         if(Character.isDigit(exprArr[0].charAt(0)))
+        {
             System.err.println("Error: Illegal variable name, variables may not start with numerals");
-        StringTokenizer splitter = new StringTokenizer(exprArr[0], " ", false);
+            valid = false;
+        }
+        // Tokenizer is used because the exprArr[0] likely has a space before the equals sign
+        // so exprArr[0].contains(" ") would not cover typical use
+        StringTokenizer splitter = new StringTokenizer(exprArr[0], " \t\n", false);
         if(splitter.countTokens() > 1) // If there are more than 1 tokens then there was a space in the variable name
+        {
             System.err.println("Error: Illegal variable name, variables may not contain whitespace");
-        else
+            valid = false;
+        }
+        if(valid)
         {
             variable = splitter.nextToken();
             this.symbolTable.insert(variable, evaluate(exprArr[1]));
@@ -262,9 +281,12 @@ public class Editor
             System.err.println("Error: Illegal variable name, variables may not contain whitespace");
         else
         {
-            Scanner input = new Scanner(System.in); // create a separate scanner to prevent collisions with console
+            // create a separate scanner to prevent collisions with console
+            // and command input system
+            Scanner input = new Scanner(System.in);
             System.out.print(var + " = \n>");
             this.symbolTable.insert(var, evaluate(input.next()));
+            // Do not explicitly close Scanner input
         }
 
     }
