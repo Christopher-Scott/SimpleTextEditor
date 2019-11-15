@@ -3,17 +3,22 @@
     "A simple text editor"
  */
 
+import java.util.Hashtable;
 import java.util.Scanner;
 import java.io.*;
 import java.util.StringTokenizer;
+
 
 public class Editor
 {
     private CompLL<Line> theText;
     private String prompt;
-    private enum Keywords {READ, SAVE, LIST, RESEQUENCE, LET, PRINT, RUN, ACCEPT, QUIT, EXIT, UNDEFINED};
+    private enum Keywords {READ, SAVE, LIST, RESEQUENCE, LET, PRINT, RUN, ACCEPT, IF, GOTO, QUIT, EXIT, UNDEFINED};
     private Scanner console;
     private Dictionary symbolTable;
+    private int runPtr;
+    private Hashtable<Integer, Integer> lineToRun = null;
+    private Line cmdQueue[] = null;
 
     public Editor()
     {
@@ -21,6 +26,7 @@ public class Editor
         this.prompt = ">";
         this.console = new Scanner(System.in);
         this.symbolTable = new Dictionary();
+        this.runPtr = 0;
     }
 
     public String getPrompt()
@@ -62,7 +68,11 @@ public class Editor
             if(isInt(line))
             {
                 Line target = new Line(Integer.parseInt(line), null);
-                this.theText.removeElement(target);
+                try {
+                    this.theText.removeElement(target);
+                } catch (NullPointerException e){
+                    System.err.println("Error: Line " + line + " could not be deleted.");
+                }
             }
             else
             {
@@ -80,15 +90,22 @@ public class Editor
                 else //otherwise, it is a command, so call doCommand to perform it.
                 {
                     // provides command arg and expression arg to let(), print(), and accept()
-                    if (splitString[0].equalsIgnoreCase("let") || splitString[0].equalsIgnoreCase("print")
-                            || splitString[0].equalsIgnoreCase("accept"))
+                    if (splitString[0].equalsIgnoreCase("let")
+                            || splitString[0].equalsIgnoreCase("print")
+                            || splitString[0].equalsIgnoreCase("accept")
+                            || splitString[0].equalsIgnoreCase("if"))
                         done = this.doCommand(splitString[0], splitString[1]);
+                    else if(splitString[0].equalsIgnoreCase("goto"))
+                        System.err.println("Error: Invalid use of GOTO");
+                    else if(splitString[0].equalsIgnoreCase("for"))
+                        System.err.println("Error: Invalid use of FOR");
                     else
                         done = this.doCommand(splitString[0]);
                 }
             }
         }
     }
+
     // Overloaded for commands that do not require additional parameters
     private boolean doCommand(String com){
         return doCommand(com, null);
@@ -138,6 +155,10 @@ public class Editor
                 break;
             case ACCEPT: this.accept(expr);
                 break;
+            case IF: this.if_func(expr);
+                break;
+            case GOTO: this.goto_func(expr);
+                break;
             case QUIT:
             case EXIT: retval = true;
                 break;
@@ -164,8 +185,8 @@ public class Editor
             }
             else
             {
-              System.err.println("Error: could not parse file");
-              System.exit(1);
+              fatal("could not parse file");
+
             }
         }
 
@@ -240,6 +261,8 @@ public class Editor
             variable = splitter.nextToken();
             this.symbolTable.insert(variable, evaluate(exprArr[1]));
         }
+        //        if(isValidVariable(exprArr[0]))
+//      TODO: Change variable parsing to scheme used in for_func and validate with isValidVariable
 
     }
 
@@ -250,17 +273,57 @@ public class Editor
         System.out.println(evaluate(expr));
     }
 
-    private void run()
-    {
-        for(Line line : theText) // iterate through theText
-        {
-//            System.out.println(line);
-            String splitString[] = line.value.split(" ", 2);
-            if(splitString[0].equalsIgnoreCase("let") || splitString[0].equalsIgnoreCase("print")
-                || splitString[0].equalsIgnoreCase("accept"))
-                this.doCommand(splitString[0], splitString[1]);
+//    private void run()
+//    {
+//        for(Line line : theText) // iterate through theText
+//        {
+////            System.out.println(line);
+//            String splitString[] = line.value.split(" ", 2);
+//            if(splitString[0].equalsIgnoreCase("let")
+//                || splitString[0].equalsIgnoreCase("print")
+//                || splitString[0].equalsIgnoreCase("accept")
+//                || splitString[0].equalsIgnoreCase("if"))
+//                this.doCommand(splitString[0], splitString[1]);
+//            else
+//                this.doCommand(splitString[0]);
+//        }
+//
+//    }
+
+    private void run(){
+        this.lineToRun = new Hashtable<Integer, Integer>();
+        this.runPtr = 0;
+        this.cmdQueue = new Line[theText.getLength()];
+        int i = 0;
+
+        for(Line line : theText){ // set up data structures
+            cmdQueue[i] = line;
+            lineToRun.put(line.getLineNum(), i);
+            i++;
+        }
+        Line line;
+        while(this.runPtr < cmdQueue.length){
+            line = cmdQueue[this.runPtr];
+            this.runPtr++;
+            String splitString[] = line.getValue().split(" ", 2);
+            if(splitString[0].equalsIgnoreCase("let")
+                || splitString[0].equalsIgnoreCase("print")
+                || splitString[0].equalsIgnoreCase("accept")
+                || splitString[0].equalsIgnoreCase("if")
+                || splitString[0].equalsIgnoreCase("goto"))
+                doCommand(splitString[0], splitString[1]);
+            else if(splitString[0].equalsIgnoreCase("for")) {
+                // pass control to for
+                for_func(line.getLineNum(), splitString[1]);
+                // skip commands until next, for checks for syntax
+                while (this.runPtr < cmdQueue.length && !splitString[0].equalsIgnoreCase("next")) {
+                    line = cmdQueue[++this.runPtr];
+                    splitString = line.getValue().split(" ", 2);
+                }
+                this.runPtr++; // skip line holding next
+            }
             else
-                this.doCommand(splitString[0]);
+                doCommand(splitString[0]);
         }
 
     }
@@ -275,11 +338,11 @@ public class Editor
     private void accept(String var)
     {
         // Handle variable name errors
-        if(Character.isDigit(var.charAt(0)))
-            System.err.println("Error: Illegal variable name, variables may not start with numerals");
-        else if(var.contains(" ") || var.contains("\n") || var.contains("\t"))
-            System.err.println("Error: Illegal variable name, variables may not contain whitespace");
-        else
+//        if(Character.isDigit(var.charAt(0)))
+//            System.err.println("Error: Illegal variable name, variables may not start with numerals");
+//        else if(var.contains(" ") || var.contains("\n") || var.contains("\t"))
+//            System.err.println("Error: Illegal variable name, variables may not contain whitespace");
+        if(isValidVariable(var))
         {
             // create a separate scanner to prevent collisions with console
             // and command input system
@@ -289,6 +352,197 @@ public class Editor
             // Do not explicitly close Scanner input
         }
 
+    }
+
+    private void if_func(String expr){
+        String expression = "";
+        int cmdIndex = parseCommand(expr);
+        if(cmdIndex < 0){
+            System.err.println("Error in IF: No valid command");
+            return;
+        }
+
+        String exprOnly = expr.substring(0, cmdIndex);
+        String command = expr.substring(cmdIndex);
+        String splitString[] = null;
+        int parens = 0;
+        boolean valid = false;
+        char c;
+        int i = 0;
+
+        // parse expression for valid parentheses
+        while(i < exprOnly.length()){
+            c = exprOnly.charAt(i);
+            if( parens == 0 && Character.isWhitespace(c)) { // skip leading whitespace before expression
+                i++;
+                continue;
+            }
+            if(c == '(')
+                parens++;
+
+            else if(c == ')')
+                parens--;
+
+            if(parens == 0)
+                valid = true;
+
+            //System.out.println("Parens = " + parens);
+            expression += c;
+            i++;
+        }
+
+        if(parens < 0) {
+            System.err.println("Error in IF: malformed expression");
+            return;
+        }
+
+        if(parens == 0 && valid){ // parse command
+            if(evaluate(expression) >= 0) {
+//                System.out.println("DEBUG: " + command);
+                splitString = command.split(" ", 2);
+                doCommand(splitString[0], splitString[1]);
+            }
+        }
+        else
+            fatal(expr + " is not a valid expression.");
+
+        return;
+
+    }
+
+    private void goto_func(String expr){
+        int jump;
+        try {
+            jump = Integer.parseInt(expr);
+            if(lineToRun.get(jump) >= theText.getLength() || jump < 0){
+                System.err.println("Error: invalid argument for GOTO, usage GOTO <Line Number>");
+            }
+            this.runPtr = lineToRun.get(jump);
+        }
+        catch(NullPointerException e){
+        System.err.println("Error: invalid argument for GOTO, usage GOTO <Line Number>");
+        }
+    }
+
+    private void for_func(int lineNum, String expr){
+        CompLL<Line> cmdList = new CompLL<Line>();
+        char c;
+        String var = "";
+        String expression1 = "";
+        String expression2 = "";
+        int len = expr.length();
+        int index = 0;
+
+        // Parse variable name
+        while( index < len && (c = expr.charAt(index++)) != '='){
+            if(!Character.isWhitespace(c))
+                var += c;
+        }
+        if(!isValidVariable(var))
+            fatal("In FOR, illegal variable name");
+        else if(index >= len)
+            fatal("Syntax error in FOR, reached end of field while parsing");
+        index++; // skip over '='
+
+        // Parse for expression 1 until ',' or EOF, expression evaluation is agnostic towards whitespace
+        while( index < len && (c = expr.charAt(index++)) != ','){
+            expression1 += c;
+        }
+        if(!isValidExpression(expression1))
+            fatal("\"" + expression1 + "\"" + "is not valid");
+        else if(index >= len)
+            fatal("Syntax error in FOR, reached end of field while parsing");
+        index++; // skip over ','
+
+        // Parse for expression 2 until EOF
+        while( index < len && (c = expr.charAt(index++)) != '\n') {
+            expression2 += c;
+        }
+
+        // evaluate expressions and add to symbol table
+        double initialValue = evaluate(expression1);
+        double endValue = evaluate(expression2);
+        this.symbolTable.insert(var, initialValue);
+
+        // add the commands of the FOR loop to a command queue
+        boolean hasEnd = false;
+        for(Line line : theText){
+            if(line.getLineNum() > lineNum && !line.getValue().equalsIgnoreCase("NEXT")){
+                cmdList.insertInOrder(line);
+            }
+            if(line.getValue().equalsIgnoreCase("NEXT")) {
+                hasEnd = true;
+                break;
+            }
+        }
+        if(!hasEnd)
+            fatal("Syntax in FOR, no NEXT command");
+        try {
+            while (this.symbolTable.find(var) <= endValue){
+                for(Line line : cmdList){
+                    parseAndExecute(line);
+                }
+                initialValue++;
+                this.symbolTable.insert(var, initialValue);
+            }
+
+        }catch(Dictionary.KeyException e){
+            fatal("in FOR\n" + e.getMessage());
+        }
+
+
+    }
+
+    private int parseCommand(String expr){
+        expr.toUpperCase();
+        if(expr.contains("LET"))
+            return expr.indexOf("LET");
+        else if(expr.contains("ACCEPT"))
+            return expr.indexOf("ACCEPT");
+        else if(expr.contains("PRINT"))
+            return expr.indexOf("PRINT");
+        else if(expr.contains("GOTO"))
+            return expr.indexOf("GOTO");
+        else
+            return -1;
+    }
+
+    private boolean parseAndExecute(Line line){
+         //Valid commands are LET, ACCEPT, PRINT, LIST, SAVE, READ, RUN, GOTO, IF
+        boolean done = false;
+        String splitString[] = line.getValue().split(" ", 2);
+        if (splitString[0].equalsIgnoreCase("let")
+                || splitString[0].equalsIgnoreCase("print")
+                || splitString[0].equalsIgnoreCase("accept")
+                || splitString[0].equalsIgnoreCase("if")
+                || splitString[0].equalsIgnoreCase("goto")
+                || splitString[0].equalsIgnoreCase("for"))
+            done = this.doCommand(splitString[0], splitString[1]);
+        else
+            fatal("Runtime command error");
+        return done;
+    }
+
+    private boolean isValidVariable(String var){
+        if(Character.isDigit(var.charAt(0))) {
+            System.err.println("Error: Illegal variable name, variables may not start with numerals");
+            return false;
+        }
+        else if(var.contains(" ") || var.contains("\n") || var.contains("\t")) {
+            System.err.println("Error: Illegal variable name, variables may not contain whitespace");
+            return false;
+        }
+        else
+            return true;
+    }
+
+    private boolean isValidExpression(String expr){
+        return true;
+    }
+
+    private void fatal(String msg){
+        System.err.println("Error: " + msg);
+        System.exit(1);
     }
 
     public static void main(String args[])

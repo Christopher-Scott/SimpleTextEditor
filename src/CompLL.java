@@ -8,11 +8,13 @@ public class CompLL<T extends Comparable<T>> implements Iterable<T>
 {
     private ListElement<T> head;
     private ListElement<T> tail;
+    private int length;
 
     public CompLL()
     {
         this.head = new ListElement<T>(); // add dummy "first" element
         this.tail = this.head;
+        this.length = 0;
     }
 
     public Iterator<T> iterator() {
@@ -65,6 +67,7 @@ public class CompLL<T extends Comparable<T>> implements Iterable<T>
     public void insertInOrder(T value)
     {
         head = insertInOrder(value, head);
+        this.length++;
     }
 
     public ListElement<T> insertInOrder(T value, ListElement<T> h)
@@ -77,6 +80,7 @@ public class CompLL<T extends Comparable<T>> implements Iterable<T>
         else if(value.compareTo(h.link.value) == 0) // found two equal elements, should be replaced
         {
             h.link = new ListElement<T>(value, h.link.link);
+            this.length--; // duplicate elements should not increase length
             return h;
         }
         else
@@ -89,6 +93,7 @@ public class CompLL<T extends Comparable<T>> implements Iterable<T>
     public void removeElement(T target)
     {
         head.link = removeElement(target, head.link);
+        this.length--;
     }
 
     public ListElement<T> removeElement(T target, ListElement<T> h) {
@@ -102,6 +107,10 @@ public class CompLL<T extends Comparable<T>> implements Iterable<T>
 //            System.out.println("Going deeper: " + h.link);
             h.link = removeElement(target, h.link);
             return h;
+    }
+
+    public int getLength(){
+        return this.length;
     }
 
     public boolean isEmpty()

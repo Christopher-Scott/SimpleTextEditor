@@ -24,7 +24,7 @@ public class Postfix{
             }
 
             else if (tok.matches("[+\\-/*]")) { // Token contains an operator
-                
+
                 // catch error where stack is empty when an operator is presented
                 if(stack.isEmpty()){
                     System.err.println("The expression was not valid: stack is empty");
