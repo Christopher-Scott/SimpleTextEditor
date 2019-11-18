@@ -13,7 +13,7 @@ public class Editor
 {
     private CompLL<Line> theText;
     private String prompt;
-    private enum Keywords {READ, SAVE, LIST, RESEQUENCE, LET, PRINT, RUN, ACCEPT, IF, GOTO, QUIT, EXIT, UNDEFINED};
+    private enum Keywords {READ, SAVE, LIST, RESEQUENCE, LET, PRINT, RUN, ACCEPT, IF, GOTO, FOR, HELP, QUIT, EXIT, UNDEFINED};
     private Scanner console;
     private Dictionary symbolTable;
     private int runPtr;
@@ -99,6 +99,12 @@ public class Editor
                         System.err.println("Error: Invalid use of GOTO");
                     else if(splitString[0].equalsIgnoreCase("for"))
                         System.err.println("Error: Invalid use of FOR");
+                    else if(splitString[0].equalsIgnoreCase("help")){
+                        if(splitString.length == 1)
+                            done = this.doCommand(splitString[0], null);
+                        else
+                            done = this.doCommand(splitString[0], splitString[1]);
+                    }
                     else
                         done = this.doCommand(splitString[0]);
                 }
@@ -158,6 +164,8 @@ public class Editor
             case IF: this.if_func(expr);
                 break;
             case GOTO: this.goto_func(expr);
+                break;
+            case HELP: this.help(expr);
                 break;
             case QUIT:
             case EXIT: retval = true;
@@ -223,9 +231,6 @@ public class Editor
             if (isInt(splitline[0])) {
                 newLineObj = new Line(count, splitline[1]);
                 count += 10;
-//            }
-//            else // everything should begin with an int and be resequenced, but this catches anything else
-//                newLine = line;
                 newText.insertInOrder(newLineObj);
             }
         }
@@ -261,7 +266,6 @@ public class Editor
             variable = splitter.nextToken();
             this.symbolTable.insert(variable, evaluate(exprArr[1]));
         }
-        //        if(isValidVariable(exprArr[0]))
 //      TODO: Change variable parsing to scheme used in for_func and validate with isValidVariable
 
     }
@@ -269,27 +273,34 @@ public class Editor
     // print out the result of an expression
     private void print(String expr)
     {
-//        System.out.println(expr);
-        System.out.println(evaluate(expr));
+        int index;
+        int lineNum = -1;
+        String target = "";
+        if(expr.contains("LINE")){
+            index = expr.indexOf("LINE");
+            index += 4;
+            while(index < expr.length() && Character.isWhitespace(expr.charAt(index))){
+                index++;
+            }
+            if(index < expr.length() && Character.isDigit(expr.charAt(index))){
+                try{
+                    lineNum = Integer.parseInt(expr.substring(index));
+                    Line targetline = new Line(lineNum, "");
+                    if((targetline = theText.find(targetline)) != null)
+                        target = targetline.getValue();
+                    System.out.println(target);
+                } catch(NumberFormatException e){
+                    System.err.println("Error: Illegal argument for PRINT.");
+                }
+            }
+            else
+                System.out.println(expr.substring(index));
+        }
+        else
+            System.out.println(evaluate(expr));
     }
 
-//    private void run()
-//    {
-//        for(Line line : theText) // iterate through theText
-//        {
-////            System.out.println(line);
-//            String splitString[] = line.value.split(" ", 2);
-//            if(splitString[0].equalsIgnoreCase("let")
-//                || splitString[0].equalsIgnoreCase("print")
-//                || splitString[0].equalsIgnoreCase("accept")
-//                || splitString[0].equalsIgnoreCase("if"))
-//                this.doCommand(splitString[0], splitString[1]);
-//            else
-//                this.doCommand(splitString[0]);
-//        }
-//
-//    }
-
+    // runs all the executable commands currently in the editor
     private void run(){
         this.lineToRun = new Hashtable<Integer, Integer>();
         this.runPtr = 0;
@@ -338,10 +349,6 @@ public class Editor
     private void accept(String var)
     {
         // Handle variable name errors
-//        if(Character.isDigit(var.charAt(0)))
-//            System.err.println("Error: Illegal variable name, variables may not start with numerals");
-//        else if(var.contains(" ") || var.contains("\n") || var.contains("\t"))
-//            System.err.println("Error: Illegal variable name, variables may not contain whitespace");
         if(isValidVariable(var))
         {
             // create a separate scanner to prevent collisions with console
@@ -353,7 +360,7 @@ public class Editor
         }
 
     }
-
+    // If instruction, expression is true if >= 0
     private void if_func(String expr){
         String expression = "";
         int cmdIndex = parseCommand(expr);
@@ -364,7 +371,7 @@ public class Editor
 
         String exprOnly = expr.substring(0, cmdIndex);
         String command = expr.substring(cmdIndex);
-        String splitString[] = null;
+        String splitString[];
         int parens = 0;
         boolean valid = false;
         char c;
@@ -410,6 +417,7 @@ public class Editor
 
     }
 
+    // Evaluates the string expr for a line number, and jumps the instruction pointer to that position
     private void goto_func(String expr){
         int jump;
         try {
@@ -419,11 +427,12 @@ public class Editor
             }
             this.runPtr = lineToRun.get(jump);
         }
-        catch(NullPointerException e){
-        System.err.println("Error: invalid argument for GOTO, usage GOTO <Line Number>");
+        catch(NumberFormatException e){
+            System.err.println("Error: invalid argument for GOTO, usage GOTO <Line Number>");
         }
     }
 
+    // implements a counter based control structure instruction
     private void for_func(int lineNum, String expr){
         CompLL<Line> cmdList = new CompLL<Line>();
         char c;
@@ -461,18 +470,31 @@ public class Editor
 
         // evaluate expressions and add to symbol table
         double initialValue = evaluate(expression1);
+        this.symbolTable.insert(var, initialValue); // will overwrite the variable name if exists already.
         double endValue = evaluate(expression2);
-        this.symbolTable.insert(var, initialValue);
 
         // add the commands of the FOR loop to a command queue
         boolean hasEnd = false;
         for(Line line : theText){
-            if(line.getLineNum() > lineNum && !line.getValue().equalsIgnoreCase("NEXT")){
+            if(line.getLineNum() > lineNum && !line.getValue().substring(0,4).equalsIgnoreCase("NEXT")){
                 cmdList.insertInOrder(line);
             }
-            if(line.getValue().equalsIgnoreCase("NEXT")) {
-                hasEnd = true;
-                break;
+            if(line.getValue().substring(0,4).equalsIgnoreCase("NEXT")) {
+                String nextcmd = line.getValue();
+                index = 4; // look after NEXT command
+
+                while(index < nextcmd.length() && Character.isWhitespace(nextcmd.charAt(index))){ // skip whitespace
+                    index++;
+                }
+                if(nextcmd.substring(index).equalsIgnoreCase(var)) {
+                    hasEnd = true;
+                    break;
+                }
+                else{
+                    System.err.println("Error: Syntax in NEXT, usage: NEXT <variable>.");
+                    return;
+                }
+
             }
         }
         if(!hasEnd)
@@ -489,7 +511,47 @@ public class Editor
         }catch(Dictionary.KeyException e){
             fatal("in FOR\n" + e.getMessage());
         }
+    }
 
+    private void help(String cmd){
+        String command_help[] = new String[Keywords.values().length];
+        command_help[Keywords.LET.ordinal()] = "LET:\n\tUsage: LET <variable> = <expression>\n"
+                                                + "Variable names may not start with numerals and variables may not contain whitespace.\n"
+                                                + "Expression should be in infix notation\n";
+        command_help[Keywords.ACCEPT.ordinal()] = "ACCEPT:\n\tUsage: ACCEPT <variable>\n"
+                                                + "Prompts the user to enter the value of a variable. The value may be in the form of a valid expression\n";
+        command_help[Keywords.LIST.ordinal()] = "LIST:\n\tUsage: LIST\nPrints a list of all lines currently stored in the editor.\n";
+        command_help[Keywords.PRINT.ordinal()] = "PRINT:\n\tUsage: PRINT <expression> or PRINT LINE <string> or PRINT LINE <line number>"
+                                                + "\nPrints the value of the expression which may contain variables, or a string of text.\n";
+        command_help[Keywords.RUN.ordinal()] = "RUN:\n\tUsage: RUN\nExecutes the current commands stored in the editor\n";
+        command_help[Keywords.IF.ordinal()] = "IF:\n\tUsage: IF (<expression>) <command>\nExecutes command if the expression evaluates to greater than or equal 0\n";
+        command_help[Keywords.GOTO.ordinal()] = "GOTO:\n\tUsage: GOTO <line number>\nNot valid as a runtime command.  Jumps RUN execution to <line number>.\n";
+        command_help[Keywords.SAVE.ordinal()] = "SAVE:\n\tUsage: SAVE\nPrompts the user to enter a file name and saves the current lines in the editor\n";
+        command_help[Keywords.READ.ordinal()] = "READ:\n\tUsage: READ\nPrompts the user to enter a file name and adds the lines read from the file into the editor\n";
+        command_help[Keywords.QUIT.ordinal()] = "QUIT:\n\tUsage: QUIT\nExits the editor\n";
+        command_help[Keywords.EXIT.ordinal()] = "EXIT:\n\tUsage: EXIT\nExits the editor\n";
+        command_help[Keywords.RESEQUENCE.ordinal()] = "RESEQUENCE:\n\tUsage: RESEQUENCE\nReplaces the line numbers currently in the editor, incrementing by 10.\n";
+        command_help[Keywords.FOR.ordinal()] = "FOR...NEXT:\n\tUsage: \n\tFOR <variable> = <expression 1>, <expression 2>"
+                                                + "\n\t<command list>\n\tNEXT <variable>"
+                                                + "\nSets variable to the value of expression 1."
+                                                + "Iterates over command list until expression 1 > expression 2\n";
+        try {
+            // Print entire manual
+            if (cmd == null || cmd.isEmpty()) {
+                for (int i = 0; i < command_help.length; i++) {
+                    if (command_help[i] != null)
+                        System.out.println(command_help[i]);
+                }
+
+            }
+            // print specific section
+            else {
+                Keywords command = Keywords.valueOf(cmd);
+                System.out.println(command_help[command.ordinal()]);
+            }
+        } catch (IllegalArgumentException e){
+            System.err.println("Error: " + cmd + " is not a valid help entry.");
+        }
 
     }
 
@@ -508,7 +570,7 @@ public class Editor
     }
 
     private boolean parseAndExecute(Line line){
-         //Valid commands are LET, ACCEPT, PRINT, LIST, SAVE, READ, RUN, GOTO, IF
+         //Valid commands are LET, ACCEPT, PRINT, GOTO, IF, FOR
         boolean done = false;
         String splitString[] = line.getValue().split(" ", 2);
         if (splitString[0].equalsIgnoreCase("let")

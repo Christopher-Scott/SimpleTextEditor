@@ -109,6 +109,17 @@ public class CompLL<T extends Comparable<T>> implements Iterable<T>
             return h;
     }
 
+    public T find(T target){
+        ListElement<T> where = this.head.link;
+        while(where != null && where.value.compareTo(target) < 0){
+            where = where.link;
+        }
+        if(where.value.compareTo(target) == 0)
+            return where.value;
+        else
+            return null;
+    }
+
     public int getLength(){
         return this.length;
     }

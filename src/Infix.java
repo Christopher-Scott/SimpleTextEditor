@@ -32,7 +32,7 @@ public class Infix {
                     output.append(' ');
                 }
                 catch(Dictionary.KeyException e){
-                    System.err.println("Error: Symbol not found");
+                    System.err.println("Error: In expression evaluation, symbol not found");
                     System.exit(1);
                 }
             }
